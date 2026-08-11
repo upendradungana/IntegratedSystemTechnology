@@ -2,45 +2,16 @@
   "title": "LibraryCatalogueEntry",
   "type": "object",
   "properties": {
-    "isbn": {
-      "type": "string",
-      "pattern": "^\\d{13}$"
-    },
-    "title": {
-      "type": "string",
-      "minLength": 1
-    },
-    "authors": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      },
+    "isbn": {"type": "string", "pattern": "^[0-9]{13}$"},
+    "title": {"type": "string", "minLength": 1},
+    "authors": {"type": "array", "items": {"type": "string"},
       "minItems": 1
     },
-    "year": {
-      "type": "integer",
-      "minimum": 1450,
-      "maximum": 2025
-    },
-    "format": {
-      "type": "string",
-      "enum": [
-        "hardcover",
-        "paperback",
-        "ebook",
-        "audiobook"
-      ]
-    },
-    "available": {
-      "type": "boolean"
-    }
+    "year": {"type": "integer", "minimum": 1450,"maximum": 2025},
+    "format": {"type": "string", "enum": ["hardcover", "paperback", "ebook", "audiobook"] },
+    "available": {"type": "boolean"}
   },
-  "required": [
-    "isbn",
-    "title",
-    "authors",
-    "year",
-    "format"
+  "required": ["isbn", "title", "authors", "year", "format"
   ],
   "additionalProperties": false
 }
