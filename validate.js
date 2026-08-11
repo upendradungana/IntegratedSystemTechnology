@@ -1,90 +1,96 @@
-import json
-import os
-from jsonschema import Draft202012Validator, exceptions
+const fs = require('fs');
+const path = require('path');
+// Import Ajv version 8+ which separates newer draft environments
+const Ajv2020 = require('ajv/dist/2020');
 
+// Create the JSON schema and test files locally if they don't exist
+function createSampleFiles() {
+  const schema = {
+    "$schema": "https://json-schema.org",
+    "title": "LibraryCatalogueEntry",
+    "type": "object",
+    "properties": {
+      "isbn": { "type": "string", "pattern": "^[0-9]{13}$" },
+      "title": { "type": "string", "minLength": 1 },
+      "authors": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 1
+      },
+      "year": { "type": "integer", "minimum": 1450, "maximum": 2025 },
+      "format": { "type": "string", "enum": ["hardcover", "paperback", "ebook", "audiobook"] },
+      "available": { "type": "boolean" }
+    },
+    "required": ["isbn", "title", "authors", "year", "format"],
+    "additionalProperties": false
+  };
 
-def create_sample_files():
-    """Helper function to create the schema and data files locally."""
-    schema = {
-        "title": "LibraryCatalogueEntry",
-        "type": "object",
-        "properties": {
-            "isbn": {"type": "string", "pattern": "^[0-9]{13}$"},
-            "title": {"type": "string", "minLength": 1},
-            "authors": {
-                "type": "array",
-                "items": {"type": "string"},
-                "minItems": 1,
-            },
-            "year": {"type": "integer", "minimum": 1450, "maximum": 2025},
-            "format": {
-                "type": "string",
-                "enum": ["hardcover", "paperback", "ebook", "audiobook"],
-            },
-            "available": {"type": "boolean"},
-        },
-        "required": ["isbn", "title", "authors", "year", "format"],
-        "additionalProperties": False,
-    }
+  const validData = {
+    "isbn": "9780141439518",
+    "title": "Pride and Prejudice",
+    "authors": ["Jane Austen"],
+    "year": 1813,
+    "format": "paperback",
+    "available": true
+  };
 
-    valid_data = {
-        "isbn": "9780141439518",
-        "title": "Pride and Prejudice",
-        "authors": ["Jane Austen"],
-        "year": 1813,
-        "format": "paperback",
-        "available": True,
-    }
+  const invalidData = {
+    "isbn": "12345",
+    "title": "",
+    "authors": [],
+    "year": 1400,
+    "format": "hardcover"
+  };
 
-    invalid_data = {
-        "isbn": "12345",
-        "title": "",
-        "authors": [],
-        "year": 1400,
-        "format": "hardcover",
-    }
+  fs.writeFileSync(path.join(__dirname, 'catalogue.schema.json'), JSON.stringify(schema, null, 2));
+  fs.writeFileSync(path.join(__dirname, 'valid.json'), JSON.stringify(validData, null, 2));
+  fs.writeFileSync(path.join(__dirname, 'invalid.json'), JSON.stringify(invalidData, null, 2));
+}
 
-    with open("catalogue.schema.json", "w") as f:
-        json.dump(schema, f, indent=2)
-    with open("valid.json", "w") as f:
-        json.dump(valid_data, f, indent=2)
-    with open("invalid.json", "w") as f:
-        json.dump(invalid_data, f, indent=2)
+function validateFile(filePath, validateFunction) {
+  console.log(`\n--- Validating: ${filePath} ---`);
 
+  if (!fs.existsSync(filePath)) {
+    console.log(`Error: ${filePath} not found.`);
+    return;
+  }
 
-def validate_file(file_path, validator):
-    print(f"\n--- Validating: {file_path} ---")
+  // Load and parse the payload target file
+  const fileContent = fs.readFileSync(filePath, 'utf8');
+  const instance = JSON.parse(fileContent);
 
-    if not os.path.exists(file_path):
-        print(f"Error: {file_path} not found.")
-        return
+  // Execute validation rule sets
+  const isValid = validateFunction(instance);
 
-    with open(file_path, "r") as f:
-        instance = json.load(f)
+  if (isValid) {
+    console.log(`Result: PASSED! ${filePath} satisfies all schema rules.`);
+  } else {
+    console.log(`Result: FAILED! Found ${validateFunction.errors.length} validation error(s):`);
+    validateFunction.errors.forEach((err, index) => {
+      // Clean up the instance path path readability
+      const field = err.instancePath ? err.instancePath.substring(1) : 'root';
+      console.log(`  ${index + 1}. Field [${field}]: ${err.message} (${JSON.stringify(err.params)})`);
+    });
+  }
+}
 
-    # Collect all validation errors instead of stopping at the first one
-    errors = list(validator.iter_errors(instance))
+function main() {
+  // Ensure the runtime workspace has the target payload mock data files
+  createSampleFiles();
 
-    if not errors:
-        print(f"Result: PASSED! {file_path} satisfies all schema rules.")
-    else:
-        print(f"Result: FAILED! Found {len(errors)} validation error(s):")
-        for idx, error in enumerate(errors, 1):
-            path = " -> ".join([str(p) for p in error.path]) or "root"
-            print(f"  {idx}. Field [{path}]: {error.message}")
+  // Instantiate standard 2020-12 environment, instructing it to collect *all* errors
+  const ajv = new Ajv2020({ allErrors: true });
 
+  // Read schema definition metadata
+  const schemaPath = path.join(__dirname, 'catalogue.schema.json');
+  const schemaJson = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
 
-if __name__ == "__main__":
-    # Ensure files exist for this standalone example run
-    create_sample_files()
+  // Compile the schema rules structure into optimized executable checker function
+  const validate = ajv.compile(schemaJson);
 
-    # Load the JSON Schema file
-    with open("catalogue.schema.json", "r") as f:
-        schema_json = json.load(f)
+  // Evaluate structural validity matching across file layers
+  validateFile(path.join(__dirname, 'valid.json'), validate);
+  validateFile(path.join(__dirname, 'invalid.json'), validate);
+}
 
-    # Initialize the validator using the proper Draft 2020-12 specification
-    validator = Draft202012Validator(schema_json)
-
-    # Validate both payload files
-    validate_file("valid.json", validator)
-    validate_file("invalid.json", validator)
+main();
