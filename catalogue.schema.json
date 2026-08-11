@@ -11,6 +11,7 @@
     "format": {"type": "string", "enum": ["hardcover", "paperback", "ebook", "audiobook"] },
     "available": {"type": "boolean"}
   },
+  "available" : {"type": "boolean"}
   "required": ["isbn", "title", "authors", "year", "format"
   ],
   "additionalProperties": false
